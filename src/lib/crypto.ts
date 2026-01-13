@@ -3,6 +3,12 @@ import type { EncryptedVault } from './types';
 const ITERATIONS = 100000;
 const KEY_LENGTH = 256;
 
+function ensureSecureContext(): void {
+	if (typeof crypto === 'undefined' || !crypto.subtle) {
+		throw new Error('Web Crypto API not available. HTTPS or localhost is required.');
+	}
+}
+
 function arrayBufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
 	const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
 	let binary = '';
@@ -46,6 +52,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
 }
 
 export async function encrypt(data: string, passphrase: string): Promise<EncryptedVault> {
+	ensureSecureContext();
 	const salt = crypto.getRandomValues(new Uint8Array(16));
 	const iv = crypto.getRandomValues(new Uint8Array(12));
 	const key = await deriveKey(passphrase, salt);
@@ -65,6 +72,7 @@ export async function encrypt(data: string, passphrase: string): Promise<Encrypt
 }
 
 export async function decrypt(vault: EncryptedVault, passphrase: string): Promise<string> {
+	ensureSecureContext();
 	const salt = new Uint8Array(base64ToArrayBuffer(vault.salt));
 	const iv = new Uint8Array(base64ToArrayBuffer(vault.iv));
 	const encryptedData = base64ToArrayBuffer(vault.data);

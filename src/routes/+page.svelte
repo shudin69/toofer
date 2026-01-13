@@ -40,6 +40,21 @@
 		accounts = [...accounts, account];
 		await saveVault(accounts, currentPassphrase);
 	}
+
+	async function handleImportAccounts(newAccounts: Account[]) {
+		accounts = [...accounts, ...newAccounts];
+		await saveVault(accounts, currentPassphrase);
+	}
+
+	async function handleDeleteAccount(id: string) {
+		accounts = accounts.filter((a) => a.id !== id);
+		await saveVault(accounts, currentPassphrase);
+	}
+
+	async function handleEditAccount(updated: Account) {
+		accounts = accounts.map((a) => (a.id === updated.id ? updated : a));
+		await saveVault(accounts, currentPassphrase);
+	}
 </script>
 
 <svelte:head>
@@ -52,6 +67,9 @@
 		{accounts}
 		onLock={handleLock}
 		onAddAccount={handleAddAccount}
+		onImportAccounts={handleImportAccounts}
+		onDeleteAccount={handleDeleteAccount}
+		onEditAccount={handleEditAccount}
 		passphrase={currentPassphrase}
 	/>
 {:else}

@@ -1,11 +1,12 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { Html5Qrcode } from 'html5-qrcode';
 	import { parseOTPAuthURI, otpAuthToAccount, isValidOTPAuthURI } from '$lib/otpauth';
 	import type { Account } from '$lib/types';
 
 	let { onScan, onClose }: { onScan: (account: Account) => void; onClose: () => void } = $props();
 
-	let scannerRef: HTMLDivElement;
+	let scannerRef: HTMLDivElement | undefined = $state();
 	let html5Qrcode: Html5Qrcode | null = null;
 	let error = $state('');
 	let scanning = $state(false);
@@ -18,7 +19,7 @@
 
 	$effect(() => {
 		if (!manualEntry) {
-			startScanner();
+			untrack(() => startScanner());
 		}
 		return () => {
 			stopScanner();

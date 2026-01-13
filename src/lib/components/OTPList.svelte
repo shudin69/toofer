@@ -8,16 +8,23 @@
 		registerBiometric,
 		removeBiometricCredential
 	} from '$lib/webauthn';
+	import { parseOTPAuthURI, otpAuthToAccount, isValidOTPAuthURI, accountToOTPAuthURI } from '$lib/otpauth';
 
 	let {
 		accounts,
 		onLock,
 		onAddAccount,
+		onImportAccounts,
+		onDeleteAccount,
+		onEditAccount,
 		passphrase
 	}: {
 		accounts: Account[];
 		onLock: () => void;
 		onAddAccount: (account: Account) => void;
+		onImportAccounts: (accounts: Account[]) => void;
+		onDeleteAccount: (id: string) => void;
+		onEditAccount: (account: Account) => void;
 		passphrase: string;
 	} = $props();
 
@@ -27,6 +34,8 @@
 	let showScanner = $state(false);
 	let settingsMessage = $state('');
 	let settingsLoading = $state(false);
+	let fileInput: HTMLInputElement | undefined = $state();
+	let importLoading = $state(false);
 
 	$effect(() => {
 		checkBiometricStatus();
@@ -61,6 +70,74 @@
 	function handleScan(account: Account) {
 		showScanner = false;
 		onAddAccount(account);
+	}
+
+	function triggerImport() {
+		fileInput?.click();
+	}
+
+	async function handleFileImport(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		importLoading = true;
+		settingsMessage = '';
+
+		try {
+			const text = await file.text();
+			const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+			const importedAccounts: Account[] = [];
+			let failedCount = 0;
+
+			for (const line of lines) {
+				if (isValidOTPAuthURI(line)) {
+					try {
+						const parsed = parseOTPAuthURI(line);
+						importedAccounts.push(otpAuthToAccount(parsed));
+					} catch {
+						failedCount++;
+					}
+				} else {
+					failedCount++;
+				}
+			}
+
+			if (importedAccounts.length > 0) {
+				onImportAccounts(importedAccounts);
+				settingsMessage = `Imported ${importedAccounts.length} account${importedAccounts.length === 1 ? '' : 's'}${failedCount > 0 ? ` (${failedCount} failed)` : ''}`;
+			} else {
+				settingsMessage = 'No valid accounts found in file';
+			}
+		} catch {
+			settingsMessage = 'Failed to read file';
+		} finally {
+			importLoading = false;
+			input.value = '';
+		}
+	}
+
+	function handleExport() {
+		if (accounts.length === 0) {
+			settingsMessage = 'No accounts to export';
+			return;
+		}
+
+		const lines = accounts.map((account) => accountToOTPAuthURI(account));
+		const content = lines.join('\n');
+		const blob = new Blob([content], { type: 'text/plain' });
+		const url = URL.createObjectURL(blob);
+
+		const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+		const filename = `toofer_export_${timestamp}.txt`;
+
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = filename;
+		a.click();
+
+		URL.revokeObjectURL(url);
+		settingsMessage = `Exported ${accounts.length} account${accounts.length === 1 ? '' : 's'}`;
 	}
 </script>
 
@@ -154,6 +231,62 @@
 				{:else}
 					<p class="no-biometric">Biometric login is not available on this device</p>
 				{/if}
+
+				<div class="setting-item">
+					<div class="setting-info">
+						<span class="setting-label">Import Accounts</span>
+						<span class="setting-description">
+							Import from a text file with otpauth:// URLs
+						</span>
+					</div>
+					<input
+						type="file"
+						accept=".txt,text/plain"
+						bind:this={fileInput}
+						onchange={handleFileImport}
+						class="hidden-input"
+					/>
+					<button
+						class="import-btn"
+						onclick={triggerImport}
+						disabled={importLoading}
+						type="button"
+					>
+						{#if importLoading}
+							Importing...
+						{:else}
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+								<polyline points="17 8 12 3 7 8"></polyline>
+								<line x1="12" y1="3" x2="12" y2="15"></line>
+							</svg>
+							Import
+						{/if}
+					</button>
+				</div>
+
+				<div class="setting-item">
+					<div class="setting-info">
+						<span class="setting-label">Export Accounts</span>
+						<span class="setting-description">
+							Download accounts as otpauth:// URLs
+						</span>
+					</div>
+					<button
+						class="export-btn"
+						onclick={handleExport}
+						disabled={accounts.length === 0}
+						type="button"
+					>
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+							<polyline points="7 10 12 15 17 10"></polyline>
+							<line x1="12" y1="15" x2="12" y2="3"></line>
+						</svg>
+						Export
+					</button>
+				</div>
+
 				{#if settingsMessage}
 					<p class="settings-message">{settingsMessage}</p>
 				{/if}
@@ -197,7 +330,11 @@
 		{:else}
 			<div class="accounts">
 				{#each accounts as account (account.id)}
-					<AccountCard {account} />
+					<AccountCard
+							{account}
+							onDelete={() => onDeleteAccount(account.id)}
+							onEdit={(updated) => onEditAccount(updated)}
+						/>
 				{/each}
 			</div>
 		{/if}
@@ -406,6 +543,67 @@
 		border-radius: 0.5rem;
 		font-size: 0.875rem;
 		color: var(--text-secondary);
+	}
+
+	.hidden-input {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	.import-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.5rem 0.875rem;
+		background: var(--accent);
+		border: none;
+		border-radius: 0.5rem;
+		color: white;
+		font-size: 0.875rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: opacity 0.2s;
+	}
+
+	.import-btn:hover {
+		opacity: 0.9;
+	}
+
+	.import-btn:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.export-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.5rem 0.875rem;
+		background: transparent;
+		border: 1px solid var(--border);
+		border-radius: 0.5rem;
+		color: var(--text-secondary);
+		font-size: 0.875rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.export-btn:hover {
+		background: var(--bg);
+		color: var(--text-primary);
+	}
+
+	.export-btn:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 	main {

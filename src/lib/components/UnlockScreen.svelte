@@ -43,8 +43,14 @@
 		loading = true;
 		try {
 			await onUnlock(passphrase);
-		} catch {
-			error = 'Invalid passphrase';
+		} catch (err) {
+			if (err instanceof Error && err.message.includes('subtle')) {
+				error = 'Encryption requires HTTPS or localhost';
+			} else if (isNewVault) {
+				error = err instanceof Error ? err.message : 'Failed to create vault';
+			} else {
+				error = 'Invalid passphrase';
+			}
 		} finally {
 			loading = false;
 		}

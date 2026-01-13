@@ -98,3 +98,12 @@ export function isValidOTPAuthURI(uri: string): boolean {
 		return false;
 	}
 }
+
+export function accountToOTPAuthURI(account: Account): string {
+	const label = encodeURIComponent(`${account.issuer}:${account.name}`);
+	const params = new URLSearchParams({
+		secret: account.secret,
+		issuer: account.issuer
+	});
+	return `otpauth://totp/${label}?${params.toString()}`;
+}
