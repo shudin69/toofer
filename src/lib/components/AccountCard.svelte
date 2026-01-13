@@ -136,7 +136,7 @@
 	.account-card {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		gap: 1rem;
 		padding: 1rem 1.25rem;
 		background: var(--card-bg);
 		border-radius: 0.75rem;
@@ -250,6 +250,8 @@
 		display: flex;
 		align-items: center;
 		gap: 0.875rem;
+		min-width: 0;
+		flex: 1;
 	}
 
 	.issuer-icon {
@@ -263,29 +265,39 @@
 		font-weight: 600;
 		color: white;
 		font-size: 1.125rem;
+		flex-shrink: 0;
 	}
 
 	.account-details {
 		display: flex;
 		flex-direction: column;
 		gap: 0.125rem;
+		min-width: 0;
 	}
 
 	.issuer {
 		font-weight: 600;
 		color: var(--text-primary);
 		font-size: 0.9375rem;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.name {
 		color: var(--text-secondary);
 		font-size: 0.8125rem;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.otp-section {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
+		flex-shrink: 0;
+		margin-left: auto;
 	}
 
 	.otp {
