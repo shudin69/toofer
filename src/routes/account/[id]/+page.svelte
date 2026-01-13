@@ -13,6 +13,8 @@
 	} from '$lib/stores/accounts.svelte';
 	import { saveVault } from '$lib/storage';
 	import { generateTOTP, getTimeRemaining, getProgress } from '$lib/totp';
+	import { accountToOTPAuthURI } from '$lib/otpauth';
+	import QRCode from 'qrcode';
 	import type { Account } from '$lib/types';
 
 	let account = $state<Account | undefined>(undefined);
@@ -24,6 +26,8 @@
 	let editing = $state(false);
 	let editIssuer = $state('');
 	let editName = $state('');
+	let qrCodeDataUrl = $state('');
+	let qrCopied = $state(false);
 
 	$effect(() => {
 		if (browser) {
@@ -66,6 +70,36 @@
 		update();
 		return () => cancelAnimationFrame(frameId);
 	});
+
+	$effect(() => {
+		if (!account) return;
+
+		const otpauthUrl = accountToOTPAuthURI(account);
+		QRCode.toDataURL(otpauthUrl, {
+			width: 200,
+			margin: 2,
+			color: {
+				dark: '#000000',
+				light: '#ffffff'
+			}
+		}).then((url) => {
+			qrCodeDataUrl = url;
+		});
+	});
+
+	async function copyOTPAuthUrl() {
+		if (!account) return;
+		const url = accountToOTPAuthURI(account);
+		try {
+			await navigator.clipboard.writeText(url);
+			qrCopied = true;
+			setTimeout(() => {
+				qrCopied = false;
+			}, 2000);
+		} catch (err) {
+			console.error('Failed to copy:', err);
+		}
+	}
 
 	async function handleDelete() {
 		if (account) {
@@ -154,6 +188,19 @@
 						Edit
 					</button>
 				{/if}
+			</div>
+
+			<div class="qr-card">
+				<h2>Export Account</h2>
+				<p>Scan this QR code to add this account to another device</p>
+				<button type="button" class="qr-code" onclick={copyOTPAuthUrl} aria-label="Copy otpauth URL">
+					{#if qrCodeDataUrl}
+						<img src={qrCodeDataUrl} alt="QR code for {account.issuer}" />
+					{/if}
+					{#if qrCopied}
+						<span class="qr-copied-toast">URL Copied!</span>
+					{/if}
+				</button>
 			</div>
 
 			<div class="danger-zone">
@@ -371,6 +418,77 @@
 		opacity: 0.9;
 	}
 
+	.qr-card {
+		background: var(--card-bg);
+		border: 1px solid var(--border);
+		border-radius: 1rem;
+		padding: 1.5rem;
+		text-align: center;
+	}
+
+	.qr-card h2 {
+		margin: 0 0 0.5rem;
+		font-size: 1rem;
+		color: var(--text-primary);
+	}
+
+	.qr-card p {
+		margin: 0 0 1rem;
+		font-size: 0.875rem;
+		color: var(--text-secondary);
+	}
+
+	.qr-code {
+		position: relative;
+		display: inline-block;
+		padding: 0.75rem;
+		background: white;
+		border: 1px solid var(--border);
+		border-radius: 0.75rem;
+		cursor: pointer;
+		transition: transform 0.15s, box-shadow 0.15s;
+	}
+
+	.qr-code:hover {
+		transform: scale(1.02);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	}
+
+	.qr-code:active {
+		transform: scale(0.98);
+	}
+
+	.qr-code img {
+		display: block;
+		width: 200px;
+		height: 200px;
+	}
+
+	.qr-copied-toast {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		background: var(--accent);
+		color: white;
+		padding: 0.5rem 1rem;
+		border-radius: 0.5rem;
+		font-size: 0.875rem;
+		font-weight: 600;
+		animation: fade-in-out 2s ease-in-out;
+	}
+
+	@keyframes fade-in-out {
+		0%,
+		100% {
+			opacity: 0;
+		}
+		10%,
+		90% {
+			opacity: 1;
+		}
+	}
+
 	.danger-zone {
 		background: var(--card-bg);
 		border: 1px solid var(--error);
@@ -427,7 +545,8 @@
 	.edit-btn:focus-visible,
 	.cancel-btn:focus-visible,
 	.save-btn:focus-visible,
-	.delete-btn:focus-visible {
+	.delete-btn:focus-visible,
+	.qr-code:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
@@ -443,8 +562,15 @@
 		.cancel-btn,
 		.save-btn,
 		.delete-btn,
-		.otp-value {
+		.otp-value,
+		.qr-code,
+		.qr-copied-toast {
 			transition: none;
+			animation: none;
+		}
+
+		.qr-copied-toast {
+			opacity: 1;
 		}
 	}
 </style>
