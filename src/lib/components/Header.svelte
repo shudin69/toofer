@@ -10,6 +10,10 @@
 		accountStore.lock();
 		goto('/');
 	}
+
+	function handleSettings() {
+		accountStore.toggleSettings();
+	}
 </script>
 
 {#if unlocked}
@@ -23,7 +27,7 @@
 				<ThemeToggle />
 				<button
 					class="settings-btn"
-					onclick={accountStore.toggleSettings}
+					onclick={handleSettings}
 					type="button"
 					aria-label="Settings"
 				>
