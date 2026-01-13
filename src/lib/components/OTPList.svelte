@@ -17,6 +17,7 @@
 		onImportAccounts,
 		onReorderAccounts,
 		onDeleteVault,
+		onRenameVault,
 		passphrase,
 		vaultName
 	}: {
@@ -25,6 +26,7 @@
 		onImportAccounts: (accounts: Account[]) => Promise<{ added: number; duplicates: number }>;
 		onReorderAccounts: (accounts: Account[]) => void;
 		onDeleteVault: () => void;
+		onRenameVault: (newName: string) => void;
 		passphrase: string;
 		vaultName: string;
 	} = $props();
@@ -42,6 +44,8 @@
 	let draggedIndex = $state<number | null>(null);
 	let dragOverIndex = $state<number | null>(null);
 	let showDeleteVaultConfirm = $state(false);
+	let isEditingVaultName = $state(false);
+	let editedVaultName = $state('');
 
 	$effect(() => {
 		checkBiometricStatus();
@@ -203,6 +207,35 @@
 		draggedIndex = null;
 		dragOverIndex = null;
 	}
+
+	function startEditingVaultName() {
+		editedVaultName = vaultName;
+		isEditingVaultName = true;
+	}
+
+	function cancelEditingVaultName() {
+		isEditingVaultName = false;
+		editedVaultName = '';
+	}
+
+	function saveVaultName() {
+		const trimmed = editedVaultName.trim();
+		if (trimmed && trimmed !== vaultName) {
+			onRenameVault(trimmed);
+			settingsMessage = 'Vault renamed';
+		}
+		isEditingVaultName = false;
+		editedVaultName = '';
+	}
+
+	function handleVaultNameKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			saveVaultName();
+		} else if (e.key === 'Escape') {
+			cancelEditingVaultName();
+		}
+	}
 </script>
 
 <div class="otp-list">
@@ -211,6 +244,46 @@
 		<div class="settings-panel">
 			<div class="settings-content">
 				<h2>Settings</h2>
+
+				<div class="setting-item">
+					<div class="setting-info">
+						<span class="setting-label">Vault Name</span>
+						<span class="setting-description">
+							Rename your current vault
+						</span>
+					</div>
+					{#if isEditingVaultName}
+						<div class="rename-input-group">
+							<input
+								type="text"
+								class="rename-input"
+								bind:value={editedVaultName}
+								onkeydown={handleVaultNameKeydown}
+								placeholder="Vault name"
+							/>
+							<button type="button" class="save-btn" onclick={saveVaultName} aria-label="Save">
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<polyline points="20 6 9 17 4 12"></polyline>
+								</svg>
+							</button>
+							<button type="button" class="cancel-edit-btn" onclick={cancelEditingVaultName} aria-label="Cancel">
+								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<line x1="18" y1="6" x2="6" y2="18"></line>
+									<line x1="6" y1="6" x2="18" y2="18"></line>
+								</svg>
+							</button>
+						</div>
+					{:else}
+						<button type="button" class="edit-name-btn" onclick={startEditingVaultName}>
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+								<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+							</svg>
+							{vaultName}
+						</button>
+					{/if}
+				</div>
+
 				{#if biometricAvailable}
 					<div class="setting-item">
 						<div class="setting-info">
@@ -497,6 +570,77 @@
 		color: var(--text-secondary);
 	}
 
+	.edit-name-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		background: transparent;
+		border: 1px solid var(--border);
+		border-radius: 0.5rem;
+		color: var(--text-primary);
+		font-size: 0.875rem;
+		cursor: pointer;
+		transition: border-color 0.2s, background-color 0.2s;
+	}
+
+	.edit-name-btn:hover {
+		border-color: var(--accent);
+		background: var(--bg);
+	}
+
+	.rename-input-group {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+	}
+
+	.rename-input {
+		width: 140px;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--accent);
+		border-radius: 0.5rem;
+		background: var(--input-bg);
+		color: var(--text-primary);
+		font-size: 0.875rem;
+	}
+
+	.rename-input:focus {
+		outline: none;
+	}
+
+	.save-btn,
+	.cancel-edit-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border: none;
+		border-radius: 0.375rem;
+		cursor: pointer;
+		transition: background-color 0.2s;
+	}
+
+	.save-btn {
+		background: var(--accent);
+		color: white;
+	}
+
+	.save-btn:hover {
+		opacity: 0.9;
+	}
+
+	.cancel-edit-btn {
+		background: var(--border);
+		color: var(--text-secondary);
+	}
+
+	.cancel-edit-btn:hover {
+		background: var(--text-muted);
+		color: var(--text-primary);
+	}
+
 	.hidden-input {
 		position: absolute;
 		width: 1px;
@@ -757,7 +901,11 @@
 	.add-account-btn:focus-visible,
 	.delete-vault-btn:focus-visible,
 	.cancel-btn:focus-visible,
-	.delete-btn:focus-visible {
+	.delete-btn:focus-visible,
+	.edit-name-btn:focus-visible,
+	.save-btn:focus-visible,
+	.cancel-edit-btn:focus-visible,
+	.rename-input:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
@@ -801,7 +949,10 @@
 		.toast-message,
 		.delete-vault-btn,
 		.cancel-btn,
-		.delete-btn {
+		.delete-btn,
+		.edit-name-btn,
+		.save-btn,
+		.cancel-edit-btn {
 			transition: none;
 			animation: none;
 		}

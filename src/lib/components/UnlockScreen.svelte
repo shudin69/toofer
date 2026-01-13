@@ -1,26 +1,25 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import {
 		isPlatformAuthenticatorAvailable,
 		hasBiometricCredential,
 		authenticateWithBiometric
 	} from '$lib/webauthn';
-	import { getVaultList, hasLegacyVault } from '$lib/storage';
+	import { getVaultList } from '$lib/storage';
 	import type { VaultInfo } from '$lib/types';
 
 	let {
 		onUnlock,
-		onCreateVault,
-		onMigrateLegacy
+		onCreateVault
 	}: {
 		onUnlock: (vaultId: string, passphrase: string) => Promise<void>;
 		onCreateVault: (name: string, passphrase: string) => Promise<void>;
-		onMigrateLegacy: (passphrase: string) => Promise<void>;
 	} = $props();
 
 	// View states
-	type View = 'list' | 'unlock' | 'create';
-	let currentView = $state<View>('list');
-	let selectedVault = $state<VaultInfo | null>(null);
+	type View = 'unlock' | 'create';
+	let currentView = $state<View>('unlock');
+	let selectedVaultId = $state<string>('');
 
 	// Form state
 	let passphrase = $state('');
@@ -33,27 +32,28 @@
 
 	// Vault list
 	let vaults = $state<VaultInfo[]>([]);
-	let hasLegacy = $state(false);
 
 	// Biometric
 	let biometricAvailable = $state<boolean | null>(null);
 	let hasBiometric = $state<boolean | null>(null);
 
+	// Derived: get the selected vault object
+	let selectedVault = $derived(vaults.find((v) => v.id === selectedVaultId) ?? null);
+
 	$effect(() => {
-		vaults = getVaultList();
-		hasLegacy = hasLegacyVault();
+		untrack(() => {
+			vaults = getVaultList();
 
-		// Auto-select if only one vault or legacy vault
-		if (vaults.length === 1 && !hasLegacy) {
-			selectedVault = vaults[0];
-			currentView = 'unlock';
-		} else if (vaults.length === 0 && hasLegacy) {
-			currentView = 'unlock';
-		} else if (vaults.length === 0 && !hasLegacy) {
-			currentView = 'create';
-		}
+			// Auto-select first vault or show create view
+			if (vaults.length > 0) {
+				selectedVaultId = vaults[0].id;
+				currentView = 'unlock';
+			} else {
+				currentView = 'create';
+			}
 
-		checkBiometricAvailability();
+			checkBiometricAvailability();
+		});
 	});
 
 	async function checkBiometricAvailability() {
@@ -61,26 +61,22 @@
 		biometricAvailable = await isPlatformAuthenticatorAvailable();
 	}
 
-	function selectVault(vault: VaultInfo) {
-		selectedVault = vault;
+	function handleVaultChange(e: Event) {
+		const target = e.target as HTMLSelectElement;
+		if (target.value === '__new__') {
+			currentView = 'create';
+			resetForm();
+		} else {
+			selectedVaultId = target.value;
+			resetForm();
+		}
+	}
+
+	function backToUnlock() {
 		currentView = 'unlock';
-		resetForm();
-	}
-
-	function selectLegacyVault() {
-		selectedVault = null;
-		currentView = 'unlock';
-		resetForm();
-	}
-
-	function startCreateVault() {
-		currentView = 'create';
-		resetForm();
-	}
-
-	function backToList() {
-		currentView = 'list';
-		selectedVault = null;
+		if (vaults.length > 0) {
+			selectedVaultId = vaults[0].id;
+		}
 		resetForm();
 	}
 
@@ -102,13 +98,13 @@
 			return;
 		}
 
+		if (!selectedVault) {
+			return;
+		}
+
 		loading = true;
 		try {
-			if (hasLegacy && !selectedVault) {
-				await onMigrateLegacy(passphrase);
-			} else if (selectedVault) {
-				await onUnlock(selectedVault.id, passphrase);
-			}
+			await onUnlock(selectedVault.id, passphrase);
 		} catch (err) {
 			if (err instanceof Error && err.message.includes('subtle')) {
 				error = 'Encryption requires HTTPS or localhost';
@@ -155,28 +151,20 @@
 
 	async function handleBiometricUnlock() {
 		error = '';
-		loading = true;
 
+		if (!selectedVault) {
+			return;
+		}
+
+		loading = true;
 		try {
 			const storedPassphrase = await authenticateWithBiometric();
-			if (hasLegacy && !selectedVault) {
-				await onMigrateLegacy(storedPassphrase);
-			} else if (selectedVault) {
-				await onUnlock(selectedVault.id, storedPassphrase);
-			}
+			await onUnlock(selectedVault.id, storedPassphrase);
 		} catch (err) {
 			error = 'Biometric authentication failed';
 		} finally {
 			loading = false;
 		}
-	}
-
-	function formatDate(timestamp: number): string {
-		return new Date(timestamp).toLocaleDateString(undefined, {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric'
-		});
 	}
 </script>
 
@@ -187,72 +175,25 @@
 			<h1>Toofer</h1>
 		</div>
 
-		{#if currentView === 'list'}
-			<p class="subtitle">Select a vault to unlock</p>
+		{#if currentView === 'unlock'}
+			<p class="subtitle">Unlock your vault</p>
 
-			<div class="vault-list">
-				{#each vaults as vault}
-					<button type="button" class="vault-item" onclick={() => selectVault(vault)}>
-						<div class="vault-icon">
-							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-								<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-								<path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-							</svg>
-						</div>
-						<div class="vault-info">
-							<span class="vault-name">{vault.name}</span>
-							<span class="vault-date">Created {formatDate(vault.createdAt)}</span>
-						</div>
-						<svg class="vault-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-							<polyline points="9 18 15 12 9 6"></polyline>
-						</svg>
-					</button>
-				{/each}
-
-				{#if hasLegacy}
-					<button type="button" class="vault-item legacy" onclick={selectLegacyVault}>
-						<div class="vault-icon">
-							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-								<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-								<path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-							</svg>
-						</div>
-						<div class="vault-info">
-							<span class="vault-name">My Vault</span>
-							<span class="vault-date">Imported vault</span>
-						</div>
-						<svg class="vault-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-							<polyline points="9 18 15 12 9 6"></polyline>
-						</svg>
-					</button>
-				{/if}
-			</div>
-
-			<button type="button" class="create-btn" onclick={startCreateVault}>
-				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					<line x1="12" y1="5" x2="12" y2="19"></line>
-					<line x1="5" y1="12" x2="19" y2="12"></line>
-				</svg>
-				Create New Vault
-			</button>
-
-		{:else if currentView === 'unlock'}
-			{#if vaults.length > 1 || (vaults.length >= 1 && hasLegacy)}
-				<button type="button" class="back-btn" onclick={backToList}>
-					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<polyline points="15 18 9 12 15 6"></polyline>
-					</svg>
-					Back to vaults
-				</button>
+			{#if vaults.length > 0}
+				<div class="input-group">
+					<label for="vault-select">Vault</label>
+					<select
+						id="vault-select"
+						value={selectedVaultId}
+						onchange={handleVaultChange}
+						disabled={loading}
+					>
+						{#each vaults as vault}
+							<option value={vault.id}>{vault.name}</option>
+						{/each}
+						<option value="__new__">+ Add new vault</option>
+					</select>
+				</div>
 			{/if}
-
-			<p class="subtitle">
-				{#if hasLegacy && !selectedVault}
-					Enter your passphrase to unlock
-				{:else if selectedVault}
-					Unlock "{selectedVault.name}"
-				{/if}
-			</p>
 
 			{#if hasBiometric !== false}
 				{#if hasBiometric === null || biometricAvailable === null}
@@ -330,12 +271,12 @@
 			</form>
 
 		{:else if currentView === 'create'}
-			{#if vaults.length > 0 || hasLegacy}
-				<button type="button" class="back-btn" onclick={backToList}>
+			{#if vaults.length > 0}
+				<button type="button" class="back-btn" onclick={backToUnlock}>
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 						<polyline points="15 18 9 12 15 6"></polyline>
 					</svg>
-					Back to vaults
+					Back to unlock
 				</button>
 			{/if}
 
@@ -354,10 +295,10 @@
 				</div>
 
 				<div class="input-group">
-					<label for="passphrase">Passphrase</label>
+					<label for="new-passphrase">Passphrase</label>
 					<div class="input-with-toggle">
 						<input
-							id="passphrase"
+							id="new-passphrase"
 							type={showPassphrase ? 'text' : 'password'}
 							bind:value={passphrase}
 							placeholder="Enter a passphrase"
@@ -502,93 +443,6 @@
 		color: var(--text-primary);
 	}
 
-	.vault-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		margin-bottom: 1rem;
-	}
-
-	.vault-item {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		padding: 0.875rem 1rem;
-		background: var(--input-bg);
-		border: 1px solid var(--border);
-		border-radius: 0.5rem;
-		cursor: pointer;
-		transition: border-color 0.2s, background-color 0.2s;
-		text-align: left;
-	}
-
-	.vault-item:hover {
-		border-color: var(--accent);
-		background: var(--bg);
-	}
-
-	.vault-item.legacy {
-		border-style: dashed;
-	}
-
-	.vault-icon {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 40px;
-		height: 40px;
-		background: var(--accent);
-		border-radius: 0.5rem;
-		color: white;
-		flex-shrink: 0;
-	}
-
-	.vault-info {
-		flex: 1;
-		min-width: 0;
-	}
-
-	.vault-name {
-		display: block;
-		font-weight: 500;
-		color: var(--text-primary);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.vault-date {
-		display: block;
-		font-size: 0.75rem;
-		color: var(--text-muted);
-	}
-
-	.vault-arrow {
-		color: var(--text-muted);
-		flex-shrink: 0;
-	}
-
-	.create-btn {
-		width: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		padding: 0.875rem 1rem;
-		background: transparent;
-		border: 1px dashed var(--border);
-		border-radius: 0.5rem;
-		color: var(--text-secondary);
-		font-size: 0.875rem;
-		cursor: pointer;
-		transition: border-color 0.2s, color 0.2s;
-	}
-
-	.create-btn:hover {
-		border-color: var(--accent);
-		color: var(--accent);
-	}
-
 	.biometric-btn {
 		width: 100%;
 		display: flex;
@@ -690,7 +544,8 @@
 		outline-offset: 2px;
 	}
 
-	input {
+	input,
+	select {
 		padding: 0.875rem 1rem;
 		border: 1px solid var(--border);
 		border-radius: 0.5rem;
@@ -700,12 +555,23 @@
 		transition: border-color 0.2s;
 	}
 
-	input:focus {
+	select {
+		cursor: pointer;
+		appearance: none;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-position: right 1rem center;
+		padding-right: 2.5rem;
+	}
+
+	input:focus,
+	select:focus {
 		outline: none;
 		border-color: var(--accent);
 	}
 
-	input:focus-visible {
+	input:focus-visible,
+	select:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
@@ -763,8 +629,6 @@
 	/* Focus visible for buttons */
 	.biometric-btn:focus-visible,
 	.submit-btn:focus-visible,
-	.vault-item:focus-visible,
-	.create-btn:focus-visible,
 	.back-btn:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
@@ -773,11 +637,10 @@
 	/* Reduced motion */
 	@media (prefers-reduced-motion: reduce) {
 		input,
+		select,
 		.biometric-btn,
 		.submit-btn,
 		.toggle-visibility,
-		.vault-item,
-		.create-btn,
 		.back-btn {
 			transition: none;
 		}

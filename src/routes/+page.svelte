@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import type { Account } from '$lib/types';
-	import { hasVault, saveVault, loadVault, createVault, migrateLegacyVault, deleteVault, getVaultInfo } from '$lib/storage';
+	import { hasVault, saveVault, loadVault, createVault, deleteVault, getVaultInfo, renameVault } from '$lib/storage';
 	import * as accountStore from '$lib/stores/accounts.svelte';
 	import UnlockScreen from '$lib/components/UnlockScreen.svelte';
 	import OTPList from '$lib/components/OTPList.svelte';
@@ -33,15 +33,6 @@
 	async function handleCreateVault(name: string, passphrase: string) {
 		const vaultId = await createVault(name, [], passphrase);
 		accountStore.setAccounts([]);
-		accountStore.setPassphrase(passphrase);
-		accountStore.setCurrentVaultId(vaultId);
-		accountStore.setUnlocked(true);
-	}
-
-	async function handleMigrateLegacy(passphrase: string) {
-		const vaultId = await migrateLegacyVault(passphrase);
-		const loadedAccounts = await loadVault(vaultId, passphrase);
-		accountStore.setAccounts(loadedAccounts);
 		accountStore.setPassphrase(passphrase);
 		accountStore.setCurrentVaultId(vaultId);
 		accountStore.setUnlocked(true);
@@ -93,6 +84,10 @@
 		deleteVault(currentVaultId);
 		accountStore.lock();
 	}
+
+	function handleRenameVault(newName: string) {
+		renameVault(currentVaultId, newName);
+	}
 </script>
 
 <svelte:head>
@@ -107,6 +102,7 @@
 		onImportAccounts={handleImportAccounts}
 		onReorderAccounts={handleReorderAccounts}
 		onDeleteVault={handleDeleteVault}
+		onRenameVault={handleRenameVault}
 		passphrase={currentPassphrase}
 		vaultName={currentVaultName}
 	/>
@@ -125,7 +121,6 @@
 	<UnlockScreen
 		onUnlock={handleUnlock}
 		onCreateVault={handleCreateVault}
-		onMigrateLegacy={handleMigrateLegacy}
 	/>
 {/if}
 
