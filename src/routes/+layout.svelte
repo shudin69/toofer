@@ -49,17 +49,15 @@
 		min-height: 100vh;
 	}
 
-	@media (prefers-color-scheme: light) {
-		:global(body) {
-			--bg: #f5f5f5;
-			--card-bg: #ffffff;
-			--border: #e5e5e5;
-			--input-bg: #ffffff;
-			--text-primary: #171717;
-			--text-secondary: #525252;
-			--text-muted: #a3a3a3;
-			--accent: #6366f1;
-			--error: #dc2626;
-		}
+	:global([data-theme='light'] body) {
+		--bg: #f5f5f5;
+		--card-bg: #ffffff;
+		--border: #e5e5e5;
+		--input-bg: #ffffff;
+		--text-primary: #171717;
+		--text-secondary: #525252;
+		--text-muted: #a3a3a3;
+		--accent: #6366f1;
+		--error: #dc2626;
 	}
 </style>

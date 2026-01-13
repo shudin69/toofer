@@ -2,6 +2,7 @@
 	import type { Account } from '$lib/types';
 	import AccountCard from './AccountCard.svelte';
 	import QRScanner from './QRScanner.svelte';
+	import ThemeToggle from './ThemeToggle.svelte';
 	import {
 		isPlatformAuthenticatorAvailable,
 		hasBiometricCredential,
@@ -211,6 +212,7 @@
 				<h1>Toofer</h1>
 			</div>
 			<div class="header-actions">
+				<ThemeToggle />
 				<button
 					class="add-btn"
 					onclick={() => (showScanner = true)}

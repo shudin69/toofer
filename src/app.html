@@ -1,10 +1,19 @@
 <!doctype html>
-<html lang="en" style="color-scheme: dark light">
+<html lang="en">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="theme-color" content="#0f0f0f" media="(prefers-color-scheme: dark)" />
 		<meta name="theme-color" content="#f5f5f5" media="(prefers-color-scheme: light)" />
+		<script>
+			(function() {
+				var stored = localStorage.getItem('theme');
+				var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				var theme = stored || (prefersDark ? 'dark' : 'light');
+				document.documentElement.dataset.theme = theme;
+				document.documentElement.style.colorScheme = theme;
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

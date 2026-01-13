@@ -136,7 +136,8 @@
 	.account-card {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
+		justify-content: space-between;
+		gap: 0.75rem;
 		padding: 1rem 1.25rem;
 		background: var(--card-bg);
 		border-radius: 0.75rem;
@@ -273,6 +274,7 @@
 		flex-direction: column;
 		gap: 0.125rem;
 		min-width: 0;
+		flex: 1;
 	}
 
 	.issuer {
