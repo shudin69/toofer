@@ -2,7 +2,6 @@
 	import { browser } from '$app/environment';
 	import type { Account } from '$lib/types';
 	import { hasVault, saveVault, loadVault } from '$lib/storage';
-	import { sampleAccounts } from '$lib/sample-data';
 	import * as accountStore from '$lib/stores/accounts.svelte';
 	import UnlockScreen from '$lib/components/UnlockScreen.svelte';
 	import OTPList from '$lib/components/OTPList.svelte';
@@ -23,7 +22,7 @@
 	async function handleUnlock(passphrase: string) {
 		let loadedAccounts: Account[];
 		if (isNewVault) {
-			loadedAccounts = sampleAccounts;
+			loadedAccounts = [];
 			await saveVault(loadedAccounts, passphrase);
 		} else {
 			loadedAccounts = await loadVault(passphrase);
