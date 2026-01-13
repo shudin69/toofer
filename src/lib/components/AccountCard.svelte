@@ -1,29 +1,35 @@
 <script lang="ts">
 	import type { Account } from '$lib/types';
-	import { generateTOTP, getTimeRemaining } from '$lib/totp';
+	import { generateTOTP, getTimeRemaining, getProgress } from '$lib/totp';
 
 	let {
-		account,
-		onDelete
+		account
 	}: {
 		account: Account;
-		onDelete: () => void;
 	} = $props();
 
 	let otp = $state('------');
 	let timeRemaining = $state(30);
+	let progress = $state(1);
 	let copied = $state(false);
-	let showDeleteConfirm = $state(false);
-
-	async function updateOTP() {
-		otp = await generateTOTP(account.secret);
-		timeRemaining = getTimeRemaining();
-	}
+	let lastTimeStep = $state(-1);
 
 	$effect(() => {
-		updateOTP();
-		const interval = setInterval(updateOTP, 1000);
-		return () => clearInterval(interval);
+		let frameId: number;
+
+		function update() {
+			const currentTimeStep = Math.floor(Date.now() / 1000 / 30);
+			if (currentTimeStep !== lastTimeStep) {
+				lastTimeStep = currentTimeStep;
+				generateTOTP(account.secret).then((code) => (otp = code));
+			}
+			timeRemaining = getTimeRemaining();
+			progress = getProgress();
+			frameId = requestAnimationFrame(update);
+		}
+
+		update();
+		return () => cancelAnimationFrame(frameId);
 	});
 
 	async function copyToClipboard() {
@@ -41,77 +47,55 @@
 	function formatOTP(code: string): string {
 		return code.slice(0, 3) + ' ' + code.slice(3);
 	}
-
-	function handleDeleteClick(e: Event) {
-		e.stopPropagation();
-		showDeleteConfirm = true;
-	}
-
-	function handleConfirmDelete(e: Event) {
-		e.stopPropagation();
-		onDelete();
-	}
-
-	function handleCancelDelete(e: Event) {
-		e.stopPropagation();
-		showDeleteConfirm = false;
-	}
 </script>
 
-<div class="account-card-wrapper">
-	<button class="account-card" onclick={copyToClipboard} type="button">
-		<div class="account-info">
-			<div class="issuer-icon">
-				{account.issuer.charAt(0)}
-			</div>
-			<div class="account-details">
-				<span class="issuer">{account.issuer}</span>
-				<span class="name">{account.name}</span>
-			</div>
+<div
+	class="account-card"
+	onclick={(e) => {
+		if (!(e.target as HTMLElement).closest('.settings-link')) {
+			copyToClipboard();
+		}
+	}}
+	role="button"
+	tabindex="0"
+	onkeydown={(e) => {
+		if (e.key === 'Enter' && !(e.target as HTMLElement).closest('.settings-link')) {
+			copyToClipboard();
+		}
+	}}
+>
+	<div class="account-info">
+		<div class="issuer-icon">
+			{account.issuer.charAt(0)}
 		</div>
-		<span class="otp" class:expiring={timeRemaining <= 5}>{formatOTP(otp)}</span>
-		<div class="timer-bar" class:expiring={timeRemaining <= 5}>
-			<div class="timer-bar-progress" style="width: {(timeRemaining / 30) * 100}%"></div>
+		<div class="account-details">
+			<span class="issuer">{account.issuer}</span>
+			<span class="name">{account.name}</span>
 		</div>
-		{#if copied}
-			<span class="copied-toast">Copied!</span>
-		{/if}
-	</button>
-	<button
-		class="delete-btn"
-		onclick={handleDeleteClick}
-		type="button"
-		aria-label="Delete account"
+	</div>
+	<span class="otp" class:expiring={timeRemaining <= 5}>{formatOTP(otp)}</span>
+	<a
+		href="/account/{account.id}"
+		class="settings-link"
+		aria-label="Account settings"
 	>
-		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-			<polyline points="3 6 5 6 21 6"></polyline>
-			<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+		<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<circle cx="12" cy="12" r="3"></circle>
+			<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
 		</svg>
-	</button>
-
-	{#if showDeleteConfirm}
-		<div class="delete-confirm">
-			<span>Delete this account?</span>
-			<div class="delete-actions">
-				<button class="cancel-btn" onclick={handleCancelDelete} type="button">Cancel</button>
-				<button class="confirm-btn" onclick={handleConfirmDelete} type="button">Delete</button>
-			</div>
-		</div>
+	</a>
+	<div class="timer-bar" class:expiring={timeRemaining <= 5}>
+		<div class="timer-bar-progress" style="width: {progress * 100}%"></div>
+	</div>
+	{#if copied}
+		<span class="copied-toast">Copied!</span>
 	{/if}
 </div>
 
 <style>
-	.account-card-wrapper {
-		position: relative;
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
 	.account-card {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
 		gap: 0.75rem;
 		padding: 1rem 1.25rem;
 		background: var(--card-bg);
@@ -120,9 +104,6 @@
 		transition: transform 0.15s, box-shadow 0.15s;
 		position: relative;
 		border: 1px solid var(--border);
-		flex: 1;
-		text-align: left;
-		font-family: inherit;
 		overflow: hidden;
 	}
 
@@ -133,94 +114,6 @@
 
 	.account-card:active {
 		transform: translateY(0);
-	}
-
-	.delete-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0.5rem;
-		min-width: 36px;
-		min-height: 36px;
-		background: transparent;
-		border: 1px solid var(--border);
-		border-radius: 0.5rem;
-		color: var(--text-secondary);
-		cursor: pointer;
-		transition: background-color 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s;
-		opacity: 0;
-	}
-
-	.account-card-wrapper:hover .delete-btn,
-	.account-card-wrapper:focus-within .delete-btn,
-	.delete-btn:focus-visible {
-		opacity: 1;
-	}
-
-	.delete-btn:hover {
-		background: var(--error);
-		border-color: var(--error);
-		color: white;
-	}
-
-	.delete-btn:focus-visible {
-		outline: 2px solid var(--accent);
-		outline-offset: 2px;
-	}
-
-	.delete-confirm {
-		position: absolute;
-		inset: 0;
-		background: var(--card-bg);
-		border: 1px solid var(--border);
-		border-radius: 0.75rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 1rem;
-		z-index: 5;
-	}
-
-	.delete-confirm span {
-		font-weight: 500;
-		color: var(--text-primary);
-	}
-
-	.delete-actions {
-		display: flex;
-		gap: 0.5rem;
-	}
-
-	.cancel-btn {
-		padding: 0.5rem 0.875rem;
-		background: transparent;
-		border: 1px solid var(--border);
-		border-radius: 0.5rem;
-		color: var(--text-secondary);
-		font-size: 0.875rem;
-		cursor: pointer;
-		transition: background-color 0.2s, color 0.2s;
-	}
-
-	.cancel-btn:hover {
-		background: var(--bg);
-		color: var(--text-primary);
-	}
-
-	.confirm-btn {
-		padding: 0.5rem 0.875rem;
-		background: var(--error);
-		border: none;
-		border-radius: 0.5rem;
-		color: white;
-		font-size: 0.875rem;
-		font-weight: 500;
-		cursor: pointer;
-		transition: opacity 0.2s;
-	}
-
-	.confirm-btn:hover {
-		opacity: 0.9;
 	}
 
 	.account-info {
@@ -285,6 +178,27 @@
 		color: var(--error);
 	}
 
+	.settings-link {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.375rem;
+		color: var(--text-muted);
+		border-radius: 0.375rem;
+		transition: color 0.2s, background-color 0.2s;
+		flex-shrink: 0;
+	}
+
+	.settings-link:hover {
+		color: var(--text-primary);
+		background: var(--border);
+	}
+
+	.settings-link:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+
 	.timer-bar {
 		position: absolute;
 		bottom: 0;
@@ -299,7 +213,6 @@
 	.timer-bar-progress {
 		height: 100%;
 		background: var(--accent);
-		transition: width 1s linear;
 		border-radius: 0 0 0 0.75rem;
 	}
 
@@ -332,14 +245,8 @@
 		}
 	}
 
-	/* Focus visible for main card button */
+	/* Focus visible for main card */
 	.account-card:focus-visible {
-		outline: 2px solid var(--accent);
-		outline-offset: 2px;
-	}
-
-	.cancel-btn:focus-visible,
-	.confirm-btn:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
@@ -347,11 +254,8 @@
 	/* Reduced motion */
 	@media (prefers-reduced-motion: reduce) {
 		.account-card,
-		.delete-btn,
-		.cancel-btn,
-		.confirm-btn,
+		.settings-link,
 		.otp,
-		.timer-bar-progress,
 		.copied-toast {
 			transition: none;
 		}

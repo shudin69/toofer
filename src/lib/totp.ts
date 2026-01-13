@@ -66,3 +66,8 @@ export async function generateTOTP(secret: string, timeStep: number = 30, digits
 export function getTimeRemaining(timeStep: number = 30): number {
 	return timeStep - (Math.floor(Date.now() / 1000) % timeStep);
 }
+
+export function getProgress(timeStep: number = 30): number {
+	const elapsed = (Date.now() / 1000) % timeStep;
+	return 1 - elapsed / timeStep;
+}

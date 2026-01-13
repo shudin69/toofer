@@ -16,7 +16,6 @@
 		onLock,
 		onAddAccount,
 		onImportAccounts,
-		onDeleteAccount,
 		onReorderAccounts,
 		passphrase
 	}: {
@@ -24,7 +23,6 @@
 		onLock: () => void;
 		onAddAccount: (account: Account) => Promise<{ added: boolean; duplicate: boolean }>;
 		onImportAccounts: (accounts: Account[]) => Promise<{ added: number; duplicates: number }>;
-		onDeleteAccount: (id: string) => void;
 		onReorderAccounts: (accounts: Account[]) => void;
 		passphrase: string;
 	} = $props();
@@ -214,24 +212,6 @@
 			<div class="header-actions">
 				<ThemeToggle />
 				<button
-					class="add-btn"
-					onclick={() => (showScanner = true)}
-					type="button"
-					aria-label="Add account"
-				>
-					<svg
-						width="20"
-						height="20"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-					>
-						<line x1="12" y1="5" x2="12" y2="19"></line>
-						<line x1="5" y1="12" x2="19" y2="12"></line>
-					</svg>
-				</button>
-				<button
 					class="settings-btn"
 					onclick={() => (showSettings = !showSettings)}
 					type="button"
@@ -410,12 +390,23 @@
 						ondragend={handleDragEnd}
 						role="listitem"
 					>
-							<AccountCard
-							{account}
-							onDelete={() => onDeleteAccount(account.id)}
-						/>
+							<AccountCard {account} />
 					</div>
 				{/each}
+				<button class="add-account-btn" onclick={() => (showScanner = true)} type="button">
+					<svg
+						width="20"
+						height="20"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+					>
+						<line x1="12" y1="5" x2="12" y2="19"></line>
+						<line x1="5" y1="12" x2="19" y2="12"></line>
+					</svg>
+					Add Account
+				</button>
 			</div>
 		{/if}
 	</main>
@@ -478,23 +469,6 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-	}
-
-	.add-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0.5rem;
-		background: var(--accent);
-		border: none;
-		border-radius: 0.5rem;
-		color: white;
-		cursor: pointer;
-		transition: opacity 0.2s;
-	}
-
-	.add-btn:hover {
-		opacity: 0.9;
 	}
 
 	.settings-btn {
@@ -700,6 +674,27 @@
 		gap: 0.75rem;
 	}
 
+	.add-account-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		width: 100%;
+		padding: 1rem;
+		background: var(--accent);
+		border: none;
+		border-radius: 0.75rem;
+		color: white;
+		font-size: 1rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: opacity 0.2s;
+	}
+
+	.add-account-btn:hover {
+		opacity: 0.9;
+	}
+
 	.account-item {
 		position: relative;
 		cursor: grab;
@@ -771,13 +766,13 @@
 	}
 
 	/* Focus visible for all buttons */
-	.add-btn:focus-visible,
 	.settings-btn:focus-visible,
 	.lock-btn:focus-visible,
 	.toggle-btn:focus-visible,
 	.import-btn:focus-visible,
 	.export-btn:focus-visible,
-	.add-first-btn:focus-visible {
+	.add-first-btn:focus-visible,
+	.add-account-btn:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
@@ -811,7 +806,6 @@
 
 	/* Reduced motion */
 	@media (prefers-reduced-motion: reduce) {
-		.add-btn,
 		.settings-btn,
 		.lock-btn,
 		.toggle-btn,
@@ -819,6 +813,7 @@
 		.import-btn,
 		.export-btn,
 		.add-first-btn,
+		.add-account-btn,
 		.account-item,
 		.toast-message {
 			transition: none;

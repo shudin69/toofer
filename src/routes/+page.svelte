@@ -3,14 +3,16 @@
 	import type { Account } from '$lib/types';
 	import { hasVault, saveVault, loadVault } from '$lib/storage';
 	import { sampleAccounts } from '$lib/sample-data';
+	import * as accountStore from '$lib/stores/accounts.svelte';
 	import UnlockScreen from '$lib/components/UnlockScreen.svelte';
 	import OTPList from '$lib/components/OTPList.svelte';
 
-	let unlocked = $state(false);
-	let accounts = $state<Account[]>([]);
+	// Initialize from store in case we're navigating back while already unlocked
+	let unlocked = $state(accountStore.isUnlocked());
+	let accounts = $state<Account[]>(accountStore.getAccounts());
 	// Initialize as null to indicate "checking" state, preventing layout shift
 	let isNewVault = $state<boolean | null>(null);
-	let currentPassphrase = $state('');
+	let currentPassphrase = $state(accountStore.getPassphrase());
 
 	$effect(() => {
 		if (browser) {
@@ -29,12 +31,17 @@
 			currentPassphrase = passphrase;
 			unlocked = true;
 		}
+		// Sync to store for other routes
+		accountStore.setAccounts(accounts);
+		accountStore.setPassphrase(passphrase);
+		accountStore.setUnlocked(true);
 	}
 
 	function handleLock() {
 		unlocked = false;
 		accounts = [];
 		currentPassphrase = '';
+		accountStore.lock();
 	}
 
 	function isDuplicate(account: Account): boolean {
@@ -47,6 +54,7 @@
 		}
 		accounts = [...accounts, account];
 		await saveVault(accounts, currentPassphrase);
+		accountStore.setAccounts(accounts);
 		return { added: true, duplicate: false };
 	}
 
@@ -67,19 +75,16 @@
 		if (uniqueNewAccounts.length > 0) {
 			accounts = [...accounts, ...uniqueNewAccounts];
 			await saveVault(accounts, currentPassphrase);
+			accountStore.setAccounts(accounts);
 		}
 
 		return { added: uniqueNewAccounts.length, duplicates };
 	}
 
-	async function handleDeleteAccount(id: string) {
-		accounts = accounts.filter((a) => a.id !== id);
-		await saveVault(accounts, currentPassphrase);
-	}
-
 	async function handleReorderAccounts(reordered: Account[]) {
 		accounts = reordered;
 		await saveVault(accounts, currentPassphrase);
+		accountStore.setAccounts(accounts);
 	}
 </script>
 
@@ -94,7 +99,6 @@
 		onLock={handleLock}
 		onAddAccount={handleAddAccount}
 		onImportAccounts={handleImportAccounts}
-		onDeleteAccount={handleDeleteAccount}
 		onReorderAccounts={handleReorderAccounts}
 		passphrase={currentPassphrase}
 	/>
