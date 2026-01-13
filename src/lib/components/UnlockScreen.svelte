@@ -370,6 +370,8 @@
 						Create Vault
 					{/if}
 				</button>
+
+				<p class="storage-info">Your secrets are kept on this device and are encrypted using your passphrase.</p>
 			</form>
 		{/if}
 	</div>
@@ -576,6 +578,13 @@
 		font-size: 0.875rem;
 		margin: 0;
 		text-align: center;
+	}
+
+	.storage-info {
+		font-size: 0.8125rem;
+		color: var(--text-muted);
+		text-align: center;
+		margin: 1rem 0 0;
 	}
 
 	.submit-btn {
