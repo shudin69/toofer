@@ -34,6 +34,7 @@
 	let exportUnlocked = $state(false);
 	let showExportAuth = $state(false);
 	let exportPassphrase = $state('');
+	let showExportPassphrase = $state(false);
 	let exportError = $state('');
 	let exportLoading = $state(false);
 	let biometricAvailable = $state(false);
@@ -259,12 +260,32 @@
 				{:else if showExportAuth}
 					<p>Re-enter your passphrase to reveal the export QR code</p>
 					<form class="export-auth-form" onsubmit={handleExportPassphraseSubmit}>
-						<input
-							type="password"
-							bind:value={exportPassphrase}
-							placeholder="Enter passphrase"
-							disabled={exportLoading}
-						/>
+						<div class="input-with-toggle">
+							<input
+								type={showExportPassphrase ? 'text' : 'password'}
+								bind:value={exportPassphrase}
+								placeholder="Enter passphrase"
+								disabled={exportLoading}
+							/>
+							<button
+								type="button"
+								class="toggle-visibility"
+								onclick={() => (showExportPassphrase = !showExportPassphrase)}
+								aria-label={showExportPassphrase ? 'Hide passphrase' : 'Show passphrase'}
+							>
+								{#if showExportPassphrase}
+									<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+										<line x1="1" y1="1" x2="23" y2="23"></line>
+									</svg>
+								{:else}
+									<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+										<circle cx="12" cy="12" r="3"></circle>
+									</svg>
+								{/if}
+							</button>
+						</div>
 						<div class="export-auth-actions">
 							<button
 								type="button"
@@ -599,6 +620,16 @@
 		gap: 0.75rem;
 	}
 
+	.export-auth-form .input-with-toggle {
+		position: relative;
+		display: flex;
+	}
+
+	.export-auth-form .input-with-toggle input {
+		flex: 1;
+		padding-right: 3rem;
+	}
+
 	.export-auth-form input {
 		padding: 0.75rem 1rem;
 		border: 1px solid var(--border);
@@ -612,6 +643,29 @@
 	.export-auth-form input:focus {
 		outline: none;
 		border-color: var(--accent);
+	}
+
+	.toggle-visibility {
+		position: absolute;
+		right: 0.5rem;
+		top: 50%;
+		transform: translateY(-50%);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		background: transparent;
+		border: none;
+		border-radius: 0.375rem;
+		color: var(--text-muted);
+		cursor: pointer;
+		transition: color 0.2s, background-color 0.2s;
+	}
+
+	.toggle-visibility:hover {
+		color: var(--text-primary);
+		background: var(--border);
 	}
 
 	.export-auth-actions {
@@ -730,7 +784,8 @@
 	.delete-btn:focus-visible,
 	.qr-code:focus-visible,
 	.biometric-btn:focus-visible,
-	.reveal-btn:focus-visible {
+	.reveal-btn:focus-visible,
+	.toggle-visibility:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
@@ -751,7 +806,8 @@
 		.qr-code,
 		.qr-copied-toast,
 		.biometric-btn,
-		.reveal-btn {
+		.reveal-btn,
+		.toggle-visibility {
 			transition: none;
 			animation: none;
 		}
