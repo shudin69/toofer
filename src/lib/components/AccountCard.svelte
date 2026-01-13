@@ -4,21 +4,16 @@
 
 	let {
 		account,
-		onDelete,
-		onEdit
+		onDelete
 	}: {
 		account: Account;
 		onDelete: () => void;
-		onEdit: (updated: Account) => void;
 	} = $props();
 
 	let otp = $state('------');
 	let timeRemaining = $state(30);
 	let copied = $state(false);
 	let showDeleteConfirm = $state(false);
-	let isEditing = $state(false);
-	let editIssuer = $state('');
-	let editName = $state('');
 
 	async function updateOTP() {
 		otp = await generateTOTP(account.secret);
@@ -60,29 +55,6 @@
 	function handleCancelDelete(e: Event) {
 		e.stopPropagation();
 		showDeleteConfirm = false;
-	}
-
-	function handleEditClick(e: Event) {
-		e.stopPropagation();
-		editIssuer = account.issuer;
-		editName = account.name;
-		isEditing = true;
-	}
-
-	function handleSaveEdit(e: Event) {
-		e.stopPropagation();
-		if (!editIssuer.trim() || !editName.trim()) return;
-		onEdit({
-			...account,
-			issuer: editIssuer.trim(),
-			name: editName.trim()
-		});
-		isEditing = false;
-	}
-
-	function handleCancelEdit(e: Event) {
-		e.stopPropagation();
-		isEditing = false;
 	}
 </script>
 
@@ -131,17 +103,6 @@
 		{/if}
 	</button>
 	<button
-		class="edit-btn"
-		onclick={handleEditClick}
-		type="button"
-		aria-label="Edit account"
-	>
-		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-			<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-			<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-		</svg>
-	</button>
-	<button
 		class="delete-btn"
 		onclick={handleDeleteClick}
 		type="button"
@@ -152,35 +113,6 @@
 			<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
 		</svg>
 	</button>
-
-	{#if isEditing}
-		<div class="edit-overlay">
-			<div class="edit-form">
-				<div class="edit-field">
-					<label for="edit-issuer">Service</label>
-					<input
-						id="edit-issuer"
-						type="text"
-						bind:value={editIssuer}
-						onclick={(e) => e.stopPropagation()}
-					/>
-				</div>
-				<div class="edit-field">
-					<label for="edit-name">Account</label>
-					<input
-						id="edit-name"
-						type="text"
-						bind:value={editName}
-						onclick={(e) => e.stopPropagation()}
-					/>
-				</div>
-			</div>
-			<div class="edit-actions">
-				<button class="cancel-btn" onclick={handleCancelEdit} type="button">Cancel</button>
-				<button class="save-btn" onclick={handleSaveEdit} type="button">Save</button>
-			</div>
-		</div>
-	{/if}
 
 	{#if showDeleteConfirm}
 		<div class="delete-confirm">
@@ -226,7 +158,6 @@
 		transform: translateY(0);
 	}
 
-	.edit-btn,
 	.delete-btn {
 		display: flex;
 		align-items: center;
@@ -243,19 +174,10 @@
 		opacity: 0;
 	}
 
-	.account-card-wrapper:hover .edit-btn,
 	.account-card-wrapper:hover .delete-btn,
-	.account-card-wrapper:focus-within .edit-btn,
 	.account-card-wrapper:focus-within .delete-btn,
-	.edit-btn:focus-visible,
 	.delete-btn:focus-visible {
 		opacity: 1;
-	}
-
-	.edit-btn:hover {
-		background: var(--accent);
-		border-color: var(--accent);
-		color: white;
 	}
 
 	.delete-btn:hover {
@@ -264,85 +186,9 @@
 		color: white;
 	}
 
-	.edit-btn:focus-visible,
 	.delete-btn:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
-	}
-
-	.edit-overlay {
-		position: absolute;
-		inset: 0;
-		background: var(--card-bg);
-		border: 1px solid var(--border);
-		border-radius: 0.75rem;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0.75rem 1rem;
-		gap: 1rem;
-		z-index: 5;
-	}
-
-	.edit-form {
-		display: flex;
-		gap: 0.75rem;
-		flex: 1;
-	}
-
-	.edit-field {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		flex: 1;
-	}
-
-	.edit-field label {
-		font-size: 0.6875rem;
-		color: var(--text-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.edit-field input {
-		padding: 0.375rem 0.5rem;
-		border: 1px solid var(--border);
-		border-radius: 0.375rem;
-		background: var(--input-bg);
-		color: var(--text-primary);
-		font-size: 0.875rem;
-		font-family: inherit;
-	}
-
-	.edit-field input:focus {
-		outline: none;
-		border-color: var(--accent);
-	}
-
-	.edit-field input:focus-visible {
-		outline: 2px solid var(--accent);
-		outline-offset: 2px;
-	}
-
-	.edit-actions {
-		display: flex;
-		gap: 0.5rem;
-	}
-
-	.save-btn {
-		padding: 0.5rem 0.875rem;
-		background: var(--accent);
-		border: none;
-		border-radius: 0.5rem;
-		color: white;
-		font-size: 0.875rem;
-		font-weight: 500;
-		cursor: pointer;
-		transition: opacity 0.2s;
-	}
-
-	.save-btn:hover {
-		opacity: 0.9;
 	}
 
 	.delete-confirm {
@@ -519,7 +365,6 @@
 		outline-offset: 2px;
 	}
 
-	.save-btn:focus-visible,
 	.cancel-btn:focus-visible,
 	.confirm-btn:focus-visible {
 		outline: 2px solid var(--accent);
@@ -529,15 +374,11 @@
 	/* Reduced motion */
 	@media (prefers-reduced-motion: reduce) {
 		.account-card,
-		.edit-btn,
 		.delete-btn,
 		.cancel-btn,
-		.save-btn,
 		.confirm-btn,
-		.edit-field input,
 		.otp,
 		.timer-progress,
-		.toggle-slider,
 		.copied-toast {
 			transition: none;
 		}

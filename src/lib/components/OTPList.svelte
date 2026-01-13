@@ -16,7 +16,6 @@
 		onAddAccount,
 		onImportAccounts,
 		onDeleteAccount,
-		onEditAccount,
 		onReorderAccounts,
 		passphrase
 	}: {
@@ -25,7 +24,6 @@
 		onAddAccount: (account: Account) => void;
 		onImportAccounts: (accounts: Account[]) => void;
 		onDeleteAccount: (id: string) => void;
-		onEditAccount: (account: Account) => void;
 		onReorderAccounts: (accounts: Account[]) => void;
 		passphrase: string;
 	} = $props();
@@ -399,7 +397,6 @@
 							<AccountCard
 								{account}
 								onDelete={() => onDeleteAccount(account.id)}
-								onEdit={(updated) => onEditAccount(updated)}
 							/>
 						</div>
 					</div>
