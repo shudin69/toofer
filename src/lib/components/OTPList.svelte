@@ -16,13 +16,17 @@
 		onAddAccount,
 		onImportAccounts,
 		onReorderAccounts,
-		passphrase
+		onDeleteVault,
+		passphrase,
+		vaultName
 	}: {
 		accounts: Account[];
 		onAddAccount: (account: Account) => Promise<{ added: boolean; duplicate: boolean }>;
 		onImportAccounts: (accounts: Account[]) => Promise<{ added: number; duplicates: number }>;
 		onReorderAccounts: (accounts: Account[]) => void;
+		onDeleteVault: () => void;
 		passphrase: string;
+		vaultName: string;
 	} = $props();
 
 	let scannerMessage = $state('');
@@ -37,6 +41,7 @@
 	let importLoading = $state(false);
 	let draggedIndex = $state<number | null>(null);
 	let dragOverIndex = $state<number | null>(null);
+	let showDeleteVaultConfirm = $state(false);
 
 	$effect(() => {
 		checkBiometricStatus();
@@ -287,6 +292,31 @@
 				{#if settingsMessage}
 					<p class="settings-message">{settingsMessage}</p>
 				{/if}
+
+				<div class="danger-zone">
+					<h3>Danger Zone</h3>
+					{#if showDeleteVaultConfirm}
+						<div class="delete-confirm">
+							<p>Are you sure you want to delete "{vaultName}"? This will permanently delete all accounts in this vault.</p>
+							<div class="delete-actions">
+								<button type="button" class="cancel-btn" onclick={() => (showDeleteVaultConfirm = false)}>
+									Cancel
+								</button>
+								<button type="button" class="delete-btn" onclick={onDeleteVault}>
+									Delete Vault
+								</button>
+							</div>
+						</div>
+					{:else}
+						<button type="button" class="delete-vault-btn" onclick={() => (showDeleteVaultConfirm = true)}>
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<polyline points="3 6 5 6 21 6"></polyline>
+								<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+							</svg>
+							Delete Vault
+						</button>
+					{/if}
+				</div>
 			</div>
 		</div>
 	{/if}
@@ -528,6 +558,92 @@
 		cursor: not-allowed;
 	}
 
+	.danger-zone {
+		margin-top: 1.5rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--border);
+	}
+
+	.danger-zone h3 {
+		margin: 0 0 0.75rem;
+		font-size: 0.75rem;
+		color: var(--error);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		font-weight: 600;
+	}
+
+	.delete-vault-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.625rem 1rem;
+		background: transparent;
+		border: 1px solid var(--error);
+		border-radius: 0.5rem;
+		color: var(--error);
+		font-size: 0.875rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background-color 0.2s, color 0.2s;
+	}
+
+	.delete-vault-btn:hover {
+		background: var(--error);
+		color: white;
+	}
+
+	.delete-confirm {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.delete-confirm p {
+		margin: 0;
+		font-size: 0.875rem;
+		color: var(--text-secondary);
+	}
+
+	.delete-actions {
+		display: flex;
+		gap: 0.75rem;
+	}
+
+	.cancel-btn {
+		flex: 1;
+		padding: 0.625rem 1rem;
+		background: transparent;
+		border: 1px solid var(--border);
+		border-radius: 0.5rem;
+		color: var(--text-secondary);
+		font-size: 0.875rem;
+		cursor: pointer;
+		transition: background-color 0.2s, color 0.2s;
+	}
+
+	.cancel-btn:hover {
+		background: var(--border);
+		color: var(--text-primary);
+	}
+
+	.delete-btn {
+		flex: 1;
+		padding: 0.625rem 1rem;
+		background: var(--error);
+		border: none;
+		border-radius: 0.5rem;
+		color: white;
+		font-size: 0.875rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: opacity 0.2s;
+	}
+
+	.delete-btn:hover {
+		opacity: 0.9;
+	}
+
 	main {
 		flex: 1;
 		padding: 1.5rem 1rem;
@@ -638,7 +754,10 @@
 	.import-btn:focus-visible,
 	.export-btn:focus-visible,
 	.add-first-btn:focus-visible,
-	.add-account-btn:focus-visible {
+	.add-account-btn:focus-visible,
+	.delete-vault-btn:focus-visible,
+	.cancel-btn:focus-visible,
+	.delete-btn:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
@@ -679,7 +798,10 @@
 		.add-first-btn,
 		.add-account-btn,
 		.account-item,
-		.toast-message {
+		.toast-message,
+		.delete-vault-btn,
+		.cancel-btn,
+		.delete-btn {
 			transition: none;
 			animation: none;
 		}

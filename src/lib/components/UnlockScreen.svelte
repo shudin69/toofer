@@ -4,38 +4,132 @@
 		hasBiometricCredential,
 		authenticateWithBiometric
 	} from '$lib/webauthn';
+	import { getVaultList, hasLegacyVault } from '$lib/storage';
+	import type { VaultInfo } from '$lib/types';
 
 	let {
 		onUnlock,
-		isNewVault = false
-	}: { onUnlock: (passphrase: string) => Promise<void>; isNewVault?: boolean } = $props();
+		onCreateVault,
+		onMigrateLegacy
+	}: {
+		onUnlock: (vaultId: string, passphrase: string) => Promise<void>;
+		onCreateVault: (name: string, passphrase: string) => Promise<void>;
+		onMigrateLegacy: (passphrase: string) => Promise<void>;
+	} = $props();
 
+	// View states
+	type View = 'list' | 'unlock' | 'create';
+	let currentView = $state<View>('list');
+	let selectedVault = $state<VaultInfo | null>(null);
+
+	// Form state
 	let passphrase = $state('');
 	let confirmPassphrase = $state('');
+	let vaultName = $state('');
 	let showPassphrase = $state(false);
 	let showConfirmPassphrase = $state(false);
 	let error = $state('');
 	let loading = $state(false);
-	// Initialize to null to indicate "checking" state, preventing layout shift
-	// Both are null during SSR and initial render to avoid hydration mismatch
+
+	// Vault list
+	let vaults = $state<VaultInfo[]>([]);
+	let hasLegacy = $state(false);
+
+	// Biometric
 	let biometricAvailable = $state<boolean | null>(null);
 	let hasBiometric = $state<boolean | null>(null);
 
 	$effect(() => {
+		vaults = getVaultList();
+		hasLegacy = hasLegacyVault();
+
+		// Auto-select if only one vault or legacy vault
+		if (vaults.length === 1 && !hasLegacy) {
+			selectedVault = vaults[0];
+			currentView = 'unlock';
+		} else if (vaults.length === 0 && hasLegacy) {
+			currentView = 'unlock';
+		} else if (vaults.length === 0 && !hasLegacy) {
+			currentView = 'create';
+		}
+
 		checkBiometricAvailability();
 	});
 
 	async function checkBiometricAvailability() {
-		// Check localStorage first (synchronous) to minimize flash
 		hasBiometric = hasBiometricCredential();
 		biometricAvailable = await isPlatformAuthenticatorAvailable();
 	}
 
-	async function handleSubmit(e: Event) {
+	function selectVault(vault: VaultInfo) {
+		selectedVault = vault;
+		currentView = 'unlock';
+		resetForm();
+	}
+
+	function selectLegacyVault() {
+		selectedVault = null;
+		currentView = 'unlock';
+		resetForm();
+	}
+
+	function startCreateVault() {
+		currentView = 'create';
+		resetForm();
+	}
+
+	function backToList() {
+		currentView = 'list';
+		selectedVault = null;
+		resetForm();
+	}
+
+	function resetForm() {
+		passphrase = '';
+		confirmPassphrase = '';
+		vaultName = '';
+		showPassphrase = false;
+		showConfirmPassphrase = false;
+		error = '';
+	}
+
+	async function handleUnlock(e: Event) {
 		e.preventDefault();
 		error = '';
 
-		if (isNewVault && passphrase !== confirmPassphrase) {
+		if (passphrase.length < 4) {
+			error = 'Passphrase must be at least 4 characters';
+			return;
+		}
+
+		loading = true;
+		try {
+			if (hasLegacy && !selectedVault) {
+				await onMigrateLegacy(passphrase);
+			} else if (selectedVault) {
+				await onUnlock(selectedVault.id, passphrase);
+			}
+		} catch (err) {
+			if (err instanceof Error && err.message.includes('subtle')) {
+				error = 'Encryption requires HTTPS or localhost';
+			} else {
+				error = 'Invalid passphrase';
+			}
+		} finally {
+			loading = false;
+		}
+	}
+
+	async function handleCreate(e: Event) {
+		e.preventDefault();
+		error = '';
+
+		if (!vaultName.trim()) {
+			error = 'Please enter a vault name';
+			return;
+		}
+
+		if (passphrase !== confirmPassphrase) {
 			error = 'Passphrases do not match';
 			return;
 		}
@@ -47,14 +141,12 @@
 
 		loading = true;
 		try {
-			await onUnlock(passphrase);
+			await onCreateVault(vaultName.trim(), passphrase);
 		} catch (err) {
 			if (err instanceof Error && err.message.includes('subtle')) {
 				error = 'Encryption requires HTTPS or localhost';
-			} else if (isNewVault) {
-				error = err instanceof Error ? err.message : 'Failed to create vault';
 			} else {
-				error = 'Invalid passphrase';
+				error = err instanceof Error ? err.message : 'Failed to create vault';
 			}
 		} finally {
 			loading = false;
@@ -67,12 +159,24 @@
 
 		try {
 			const storedPassphrase = await authenticateWithBiometric();
-			await onUnlock(storedPassphrase);
+			if (hasLegacy && !selectedVault) {
+				await onMigrateLegacy(storedPassphrase);
+			} else if (selectedVault) {
+				await onUnlock(selectedVault.id, storedPassphrase);
+			}
 		} catch (err) {
 			error = 'Biometric authentication failed';
 		} finally {
 			loading = false;
 		}
+	}
+
+	function formatDate(timestamp: number): string {
+		return new Date(timestamp).toLocaleDateString(undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric'
+		});
 	}
 </script>
 
@@ -82,88 +186,205 @@
 			<span class="logo-icon">2</span>
 			<h1>Toofer</h1>
 		</div>
-		<p class="subtitle">
-			{#if isNewVault}
-				Create a passphrase to secure your accounts
-			{:else}
-				Enter your passphrase to unlock
-			{/if}
-		</p>
 
-		{#if !isNewVault && hasBiometric !== false}
-			{#if hasBiometric === null || biometricAvailable === null}
-				<!-- Reserve space while checking biometric availability -->
-				<div class="biometric-placeholder" aria-hidden="true">
-					<div class="biometric-btn-placeholder"></div>
-					<div class="divider-placeholder"></div>
-				</div>
-			{:else if biometricAvailable && hasBiometric}
-				<button
-					type="button"
-					class="biometric-btn"
-					onclick={handleBiometricUnlock}
-					disabled={loading}
-				>
-					<svg
-						width="24"
-						height="24"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						aria-hidden="true"
-					>
-						<path
-							d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
-						></path>
-					</svg>
-					{#if loading}
-						Authenticating…
-					{:else}
-						Unlock with Biometrics
-					{/if}
-				</button>
+		{#if currentView === 'list'}
+			<p class="subtitle">Select a vault to unlock</p>
 
-				<div class="divider">
-					<span>or use passphrase</span>
-				</div>
-			{/if}
-		{/if}
-
-		<form onsubmit={handleSubmit}>
-			<div class="input-group">
-				<label for="passphrase">Passphrase</label>
-				<div class="input-with-toggle">
-					<input
-						id="passphrase"
-						type={showPassphrase ? 'text' : 'password'}
-						bind:value={passphrase}
-						placeholder="Enter your passphrase"
-						disabled={loading}
-						autocomplete="current-password"
-					/>
-					<button
-						type="button"
-						class="toggle-visibility"
-						onclick={() => (showPassphrase = !showPassphrase)}
-						aria-label={showPassphrase ? 'Hide passphrase' : 'Show passphrase'}
-					>
-						{#if showPassphrase}
+			<div class="vault-list">
+				{#each vaults as vault}
+					<button type="button" class="vault-item" onclick={() => selectVault(vault)}>
+						<div class="vault-icon">
 							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-								<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-								<line x1="1" y1="1" x2="23" y2="23"></line>
+								<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+								<path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
 							</svg>
-						{:else}
-							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-								<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-								<circle cx="12" cy="12" r="3"></circle>
-							</svg>
-						{/if}
+						</div>
+						<div class="vault-info">
+							<span class="vault-name">{vault.name}</span>
+							<span class="vault-date">Created {formatDate(vault.createdAt)}</span>
+						</div>
+						<svg class="vault-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<polyline points="9 18 15 12 9 6"></polyline>
+						</svg>
 					</button>
-				</div>
+				{/each}
+
+				{#if hasLegacy}
+					<button type="button" class="vault-item legacy" onclick={selectLegacyVault}>
+						<div class="vault-icon">
+							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+								<path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+							</svg>
+						</div>
+						<div class="vault-info">
+							<span class="vault-name">My Vault</span>
+							<span class="vault-date">Imported vault</span>
+						</div>
+						<svg class="vault-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<polyline points="9 18 15 12 9 6"></polyline>
+						</svg>
+					</button>
+				{/if}
 			</div>
 
-			{#if isNewVault}
+			<button type="button" class="create-btn" onclick={startCreateVault}>
+				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<line x1="12" y1="5" x2="12" y2="19"></line>
+					<line x1="5" y1="12" x2="19" y2="12"></line>
+				</svg>
+				Create New Vault
+			</button>
+
+		{:else if currentView === 'unlock'}
+			{#if vaults.length > 1 || (vaults.length >= 1 && hasLegacy)}
+				<button type="button" class="back-btn" onclick={backToList}>
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<polyline points="15 18 9 12 15 6"></polyline>
+					</svg>
+					Back to vaults
+				</button>
+			{/if}
+
+			<p class="subtitle">
+				{#if hasLegacy && !selectedVault}
+					Enter your passphrase to unlock
+				{:else if selectedVault}
+					Unlock "{selectedVault.name}"
+				{/if}
+			</p>
+
+			{#if hasBiometric !== false}
+				{#if hasBiometric === null || biometricAvailable === null}
+					<div class="biometric-placeholder" aria-hidden="true">
+						<div class="biometric-btn-placeholder"></div>
+						<div class="divider-placeholder"></div>
+					</div>
+				{:else if biometricAvailable && hasBiometric}
+					<button
+						type="button"
+						class="biometric-btn"
+						onclick={handleBiometricUnlock}
+						disabled={loading}
+					>
+						<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+							<path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path>
+						</svg>
+						{#if loading}
+							Authenticating…
+						{:else}
+							Unlock with Biometrics
+						{/if}
+					</button>
+
+					<div class="divider">
+						<span>or use passphrase</span>
+					</div>
+				{/if}
+			{/if}
+
+			<form onsubmit={handleUnlock}>
+				<div class="input-group">
+					<label for="passphrase">Passphrase</label>
+					<div class="input-with-toggle">
+						<input
+							id="passphrase"
+							type={showPassphrase ? 'text' : 'password'}
+							bind:value={passphrase}
+							placeholder="Enter your passphrase"
+							disabled={loading}
+							autocomplete="current-password"
+						/>
+						<button
+							type="button"
+							class="toggle-visibility"
+							onclick={() => (showPassphrase = !showPassphrase)}
+							aria-label={showPassphrase ? 'Hide passphrase' : 'Show passphrase'}
+						>
+							{#if showPassphrase}
+								<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+									<line x1="1" y1="1" x2="23" y2="23"></line>
+								</svg>
+							{:else}
+								<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+									<circle cx="12" cy="12" r="3"></circle>
+								</svg>
+							{/if}
+						</button>
+					</div>
+				</div>
+
+				{#if error}
+					<p class="error">{error}</p>
+				{/if}
+
+				<button type="submit" class="submit-btn" disabled={loading}>
+					{#if loading}
+						Unlocking...
+					{:else}
+						Unlock
+					{/if}
+				</button>
+			</form>
+
+		{:else if currentView === 'create'}
+			{#if vaults.length > 0 || hasLegacy}
+				<button type="button" class="back-btn" onclick={backToList}>
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<polyline points="15 18 9 12 15 6"></polyline>
+					</svg>
+					Back to vaults
+				</button>
+			{/if}
+
+			<p class="subtitle">Create a new vault</p>
+
+			<form onsubmit={handleCreate}>
+				<div class="input-group">
+					<label for="vault-name">Vault Name</label>
+					<input
+						id="vault-name"
+						type="text"
+						bind:value={vaultName}
+						placeholder="e.g., Personal, Work"
+						disabled={loading}
+					/>
+				</div>
+
+				<div class="input-group">
+					<label for="passphrase">Passphrase</label>
+					<div class="input-with-toggle">
+						<input
+							id="passphrase"
+							type={showPassphrase ? 'text' : 'password'}
+							bind:value={passphrase}
+							placeholder="Enter a passphrase"
+							disabled={loading}
+							autocomplete="new-password"
+						/>
+						<button
+							type="button"
+							class="toggle-visibility"
+							onclick={() => (showPassphrase = !showPassphrase)}
+							aria-label={showPassphrase ? 'Hide passphrase' : 'Show passphrase'}
+						>
+							{#if showPassphrase}
+								<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+									<line x1="1" y1="1" x2="23" y2="23"></line>
+								</svg>
+							{:else}
+								<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+									<circle cx="12" cy="12" r="3"></circle>
+								</svg>
+							{/if}
+						</button>
+					</div>
+				</div>
+
 				<div class="input-group">
 					<label for="confirm">Confirm Passphrase</label>
 					<div class="input-with-toggle">
@@ -195,22 +416,20 @@
 						</button>
 					</div>
 				</div>
-			{/if}
 
-			{#if error}
-				<p class="error">{error}</p>
-			{/if}
-
-			<button type="submit" class="submit-btn" disabled={loading}>
-				{#if loading}
-					Unlocking...
-				{:else if isNewVault}
-					Create Vault
-				{:else}
-					Unlock
+				{#if error}
+					<p class="error">{error}</p>
 				{/if}
-			</button>
-		</form>
+
+				<button type="submit" class="submit-btn" disabled={loading}>
+					{#if loading}
+						Creating...
+					{:else}
+						Create Vault
+					{/if}
+				</button>
+			</form>
+		{/if}
 	</div>
 </div>
 
@@ -262,7 +481,112 @@
 	.subtitle {
 		text-align: center;
 		color: var(--text-secondary);
-		margin-bottom: 2rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.back-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0.5rem 0;
+		background: transparent;
+		border: none;
+		color: var(--text-secondary);
+		font-size: 0.875rem;
+		cursor: pointer;
+		margin-bottom: 0.5rem;
+		transition: color 0.2s;
+	}
+
+	.back-btn:hover {
+		color: var(--text-primary);
+	}
+
+	.vault-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin-bottom: 1rem;
+	}
+
+	.vault-item {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.875rem 1rem;
+		background: var(--input-bg);
+		border: 1px solid var(--border);
+		border-radius: 0.5rem;
+		cursor: pointer;
+		transition: border-color 0.2s, background-color 0.2s;
+		text-align: left;
+	}
+
+	.vault-item:hover {
+		border-color: var(--accent);
+		background: var(--bg);
+	}
+
+	.vault-item.legacy {
+		border-style: dashed;
+	}
+
+	.vault-icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 40px;
+		height: 40px;
+		background: var(--accent);
+		border-radius: 0.5rem;
+		color: white;
+		flex-shrink: 0;
+	}
+
+	.vault-info {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.vault-name {
+		display: block;
+		font-weight: 500;
+		color: var(--text-primary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.vault-date {
+		display: block;
+		font-size: 0.75rem;
+		color: var(--text-muted);
+	}
+
+	.vault-arrow {
+		color: var(--text-muted);
+		flex-shrink: 0;
+	}
+
+	.create-btn {
+		width: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		padding: 0.875rem 1rem;
+		background: transparent;
+		border: 1px dashed var(--border);
+		border-radius: 0.5rem;
+		color: var(--text-secondary);
+		font-size: 0.875rem;
+		cursor: pointer;
+		transition: border-color 0.2s, color 0.2s;
+	}
+
+	.create-btn:hover {
+		border-color: var(--accent);
+		color: var(--accent);
 	}
 
 	.biometric-btn {
@@ -438,7 +762,10 @@
 
 	/* Focus visible for buttons */
 	.biometric-btn:focus-visible,
-	.submit-btn:focus-visible {
+	.submit-btn:focus-visible,
+	.vault-item:focus-visible,
+	.create-btn:focus-visible,
+	.back-btn:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
 	}
@@ -448,7 +775,10 @@
 		input,
 		.biometric-btn,
 		.submit-btn,
-		.toggle-visibility {
+		.toggle-visibility,
+		.vault-item,
+		.create-btn,
+		.back-btn {
 			transition: none;
 		}
 	}

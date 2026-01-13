@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import type { Account } from '$lib/types';
-	import { hasVault, saveVault, loadVault } from '$lib/storage';
+	import { hasVault, saveVault, loadVault, createVault, migrateLegacyVault, deleteVault, getVaultInfo } from '$lib/storage';
 	import * as accountStore from '$lib/stores/accounts.svelte';
 	import UnlockScreen from '$lib/components/UnlockScreen.svelte';
 	import OTPList from '$lib/components/OTPList.svelte';
@@ -10,26 +10,40 @@
 	let unlocked = $derived(accountStore.isUnlocked());
 	let accounts = $derived(accountStore.getAccounts());
 	let currentPassphrase = $derived(accountStore.getPassphrase());
+	let currentVaultId = $derived(accountStore.getCurrentVaultId());
+	let currentVaultName = $derived(getVaultInfo(currentVaultId)?.name ?? 'Vault');
+
 	// Initialize as null to indicate "checking" state, preventing layout shift
-	let isNewVault = $state<boolean | null>(null);
+	let ready = $state<boolean>(false);
 
 	$effect(() => {
 		if (browser) {
-			isNewVault = !hasVault();
+			ready = true;
 		}
 	});
 
-	async function handleUnlock(passphrase: string) {
-		let loadedAccounts: Account[];
-		if (isNewVault) {
-			loadedAccounts = [];
-			await saveVault(loadedAccounts, passphrase);
-		} else {
-			loadedAccounts = await loadVault(passphrase);
-		}
-		// Update store - derived values will automatically update
+	async function handleUnlock(vaultId: string, passphrase: string) {
+		const loadedAccounts = await loadVault(vaultId, passphrase);
 		accountStore.setAccounts(loadedAccounts);
 		accountStore.setPassphrase(passphrase);
+		accountStore.setCurrentVaultId(vaultId);
+		accountStore.setUnlocked(true);
+	}
+
+	async function handleCreateVault(name: string, passphrase: string) {
+		const vaultId = await createVault(name, [], passphrase);
+		accountStore.setAccounts([]);
+		accountStore.setPassphrase(passphrase);
+		accountStore.setCurrentVaultId(vaultId);
+		accountStore.setUnlocked(true);
+	}
+
+	async function handleMigrateLegacy(passphrase: string) {
+		const vaultId = await migrateLegacyVault(passphrase);
+		const loadedAccounts = await loadVault(vaultId, passphrase);
+		accountStore.setAccounts(loadedAccounts);
+		accountStore.setPassphrase(passphrase);
+		accountStore.setCurrentVaultId(vaultId);
 		accountStore.setUnlocked(true);
 	}
 
@@ -42,7 +56,7 @@
 			return { added: false, duplicate: true };
 		}
 		const updated = [...accounts, account];
-		await saveVault(updated, currentPassphrase);
+		await saveVault(currentVaultId, updated, currentPassphrase);
 		accountStore.setAccounts(updated);
 		return { added: true, duplicate: false };
 	}
@@ -63,7 +77,7 @@
 
 		if (uniqueNewAccounts.length > 0) {
 			const updated = [...accounts, ...uniqueNewAccounts];
-			await saveVault(updated, currentPassphrase);
+			await saveVault(currentVaultId, updated, currentPassphrase);
 			accountStore.setAccounts(updated);
 		}
 
@@ -71,8 +85,13 @@
 	}
 
 	async function handleReorderAccounts(reordered: Account[]) {
-		await saveVault(reordered, currentPassphrase);
+		await saveVault(currentVaultId, reordered, currentPassphrase);
 		accountStore.setAccounts(reordered);
+	}
+
+	function handleDeleteVault() {
+		deleteVault(currentVaultId);
+		accountStore.lock();
 	}
 </script>
 
@@ -87,9 +106,11 @@
 		onAddAccount={handleAddAccount}
 		onImportAccounts={handleImportAccounts}
 		onReorderAccounts={handleReorderAccounts}
+		onDeleteVault={handleDeleteVault}
 		passphrase={currentPassphrase}
+		vaultName={currentVaultName}
 	/>
-{:else if isNewVault === null}
+{:else if !ready}
 	<!-- Loading state while checking vault status -->
 	<div class="loading-screen">
 		<div class="loading-card">
@@ -101,7 +122,11 @@
 		</div>
 	</div>
 {:else}
-	<UnlockScreen onUnlock={handleUnlock} isNewVault={isNewVault ?? false} />
+	<UnlockScreen
+		onUnlock={handleUnlock}
+		onCreateVault={handleCreateVault}
+		onMigrateLegacy={handleMigrateLegacy}
+	/>
 {/if}
 
 <style>
