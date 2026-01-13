@@ -28,7 +28,6 @@ export function isUnlocked() {
 
 export function setUnlocked(value: boolean) {
 	unlocked = value;
-	console.log({ unlocked });
 }
 
 export function getAccountById(id: string): Account | undefined {
