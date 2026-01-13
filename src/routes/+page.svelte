@@ -38,18 +38,19 @@
 		accountStore.setUnlocked(true);
 	}
 
-	function isDuplicate(account: Account): boolean {
-		return accounts.some((a) => a.secret === account.secret);
+	function findDuplicate(account: Account): Account | undefined {
+		return accounts.find((a) => a.secret === account.secret);
 	}
 
-	async function handleAddAccount(account: Account): Promise<{ added: boolean; duplicate: boolean }> {
-		if (isDuplicate(account)) {
-			return { added: false, duplicate: true };
+	async function handleAddAccount(account: Account): Promise<{ added: boolean; duplicate: boolean; id: string }> {
+		const existing = findDuplicate(account);
+		if (existing) {
+			return { added: false, duplicate: true, id: existing.id };
 		}
 		const updated = [...accounts, account];
 		await saveVault(currentVaultId, updated, currentPassphrase);
 		accountStore.setAccounts(updated);
-		return { added: true, duplicate: false };
+		return { added: true, duplicate: false, id: account.id };
 	}
 
 	async function handleImportAccounts(newAccounts: Account[]): Promise<{ added: number; duplicates: number }> {

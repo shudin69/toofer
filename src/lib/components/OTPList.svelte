@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import type { Account } from '$lib/types';
 	import AccountCard from './AccountCard.svelte';
 	import QRScanner from './QRScanner.svelte';
@@ -22,7 +23,7 @@
 		vaultName
 	}: {
 		accounts: Account[];
-		onAddAccount: (account: Account) => Promise<{ added: boolean; duplicate: boolean }>;
+		onAddAccount: (account: Account) => Promise<{ added: boolean; duplicate: boolean; id: string }>;
 		onImportAccounts: (accounts: Account[]) => Promise<{ added: number; duplicates: number }>;
 		onReorderAccounts: (accounts: Account[]) => void;
 		onDeleteVault: () => void;
@@ -30,8 +31,6 @@
 		passphrase: string;
 		vaultName: string;
 	} = $props();
-
-	let scannerMessage = $state('');
 
 	let biometricAvailable = $state(false);
 	let biometricEnabled = $state(false);
@@ -80,12 +79,7 @@
 	async function handleScan(account: Account) {
 		showScanner = false;
 		const result = await onAddAccount(account);
-		if (result.duplicate) {
-			scannerMessage = 'Account already exists';
-			setTimeout(() => {
-				scannerMessage = '';
-			}, 3000);
-		}
+		goto(`/account/${result.id}`);
 	}
 
 	function triggerImport() {
@@ -392,10 +386,6 @@
 				</div>
 			</div>
 		</div>
-	{/if}
-
-	{#if scannerMessage}
-		<div class="toast-message">{scannerMessage}</div>
 	{/if}
 
 	<main>
@@ -910,33 +900,6 @@
 		outline-offset: 2px;
 	}
 
-	.toast-message {
-		position: fixed;
-		bottom: 2rem;
-		left: 50%;
-		transform: translateX(-50%);
-		background: var(--card-bg);
-		border: 1px solid var(--border);
-		padding: 0.75rem 1.25rem;
-		border-radius: 0.5rem;
-		font-size: 0.875rem;
-		color: var(--text-primary);
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-		z-index: 50;
-		animation: slide-up 0.2s ease-out;
-	}
-
-	@keyframes slide-up {
-		from {
-			opacity: 0;
-			transform: translateX(-50%) translateY(1rem);
-		}
-		to {
-			opacity: 1;
-			transform: translateX(-50%) translateY(0);
-		}
-	}
-
 	/* Reduced motion */
 	@media (prefers-reduced-motion: reduce) {
 		.toggle-btn,
@@ -946,7 +909,6 @@
 		.add-first-btn,
 		.add-account-btn,
 		.account-item,
-		.toast-message,
 		.delete-vault-btn,
 		.cancel-btn,
 		.delete-btn,
