@@ -3,6 +3,8 @@
 	import type { Account } from '$lib/types';
 	import AccountCard from './AccountCard.svelte';
 	import QRScanner from './QRScanner.svelte';
+	import Lock from '@lucide/svelte/icons/lock';
+	import Plus from '@lucide/svelte/icons/plus';
 
 	let {
 		accounts,
@@ -72,32 +74,12 @@
 		{#if accounts.length === 0}
 			<div class="empty-state">
 				<div class="empty-icon">
-					<svg
-						width="48"
-						height="48"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-					>
-						<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-						<path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-					</svg>
+					<Lock size={48} strokeWidth={1.5} />
 				</div>
 				<p>No accounts yet</p>
 				<p class="hint">Scan a QR code to add your first 2FA account</p>
 				<button class="add-first-btn" onclick={() => (showScanner = true)}>
-					<svg
-						width="20"
-						height="20"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-					>
-						<line x1="12" y1="5" x2="12" y2="19"></line>
-						<line x1="5" y1="12" x2="19" y2="12"></line>
-					</svg>
+					<Plus size={20} />
 					Add Account
 				</button>
 			</div>
@@ -120,17 +102,7 @@
 					</div>
 				{/each}
 				<button class="add-account-btn" onclick={() => (showScanner = true)}>
-					<svg
-						width="20"
-						height="20"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-					>
-						<line x1="12" y1="5" x2="12" y2="19"></line>
-						<line x1="5" y1="12" x2="19" y2="12"></line>
-					</svg>
+					<Plus size={20} />
 					Add Account
 				</button>
 			</div>

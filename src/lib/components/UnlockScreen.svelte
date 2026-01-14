@@ -8,6 +8,10 @@
 	import { getVaultList } from '$lib/storage';
 	import type { VaultInfo } from '$lib/types';
 	import Logo from './Logo.svelte';
+	import Fingerprint from '@lucide/svelte/icons/fingerprint';
+	import Eye from '@lucide/svelte/icons/eye';
+	import EyeOff from '@lucide/svelte/icons/eye-off';
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
 	let {
 		onUnlock,
@@ -208,9 +212,7 @@
 						onclick={handleBiometricUnlock}
 						disabled={loading}
 					>
-						<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-							<path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path>
-						</svg>
+						<Fingerprint size={24} aria-hidden="true" />
 						{#if loading}
 							Authenticating…
 						{:else}
@@ -243,15 +245,9 @@
 							aria-label={showPassphrase ? 'Hide passphrase' : 'Show passphrase'}
 						>
 							{#if showPassphrase}
-								<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-									<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-									<line x1="1" y1="1" x2="23" y2="23"></line>
-								</svg>
+								<EyeOff size={20} />
 							{:else}
-								<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-									<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-									<circle cx="12" cy="12" r="3"></circle>
-								</svg>
+								<Eye size={20} />
 							{/if}
 						</button>
 					</div>
@@ -273,9 +269,7 @@
 		{:else if currentView === 'create'}
 			{#if vaults.length > 0}
 				<button class="back-btn" onclick={backToUnlock}>
-					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<polyline points="15 18 9 12 15 6"></polyline>
-					</svg>
+					<ChevronLeft size={20} />
 					Back to unlock
 				</button>
 			{/if}
@@ -312,15 +306,9 @@
 							aria-label={showPassphrase ? 'Hide passphrase' : 'Show passphrase'}
 						>
 							{#if showPassphrase}
-								<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-									<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-									<line x1="1" y1="1" x2="23" y2="23"></line>
-								</svg>
+								<EyeOff size={20} />
 							{:else}
-								<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-									<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-									<circle cx="12" cy="12" r="3"></circle>
-								</svg>
+								<Eye size={20} />
 							{/if}
 						</button>
 					</div>
@@ -344,15 +332,9 @@
 							aria-label={showConfirmPassphrase ? 'Hide passphrase' : 'Show passphrase'}
 						>
 							{#if showConfirmPassphrase}
-								<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-									<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-									<line x1="1" y1="1" x2="23" y2="23"></line>
-								</svg>
+								<EyeOff size={20} />
 							{:else}
-								<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-									<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-									<circle cx="12" cy="12" r="3"></circle>
-								</svg>
+								<Eye size={20} />
 							{/if}
 						</button>
 					</div>

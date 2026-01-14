@@ -27,6 +27,7 @@
 		"vite-plugin-devtools-json": "^1.0.0"
 	},
 	"dependencies": {
+		"@lucide/svelte": "^0.562.0",
 		"html5-qrcode": "^2.3.8",
 		"qrcode": "^1.5.4"
 	}
